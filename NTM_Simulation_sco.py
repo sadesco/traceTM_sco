@@ -1,127 +1,153 @@
-import csv
-import itertools
-import networkx as nx
-import matplotlib.pyplot as plt
+import sys
 
+def read_tm_file(file):
+    with open(file, "r") as f:
+        lines = f.readlines()
 
-class NondeterministicTuringMachine:
-    def __init__(self, states, tape_alphabet, input_alphabet, transitions, start_state, accept_states, reject_states):
-        self.states = states
-        self.tape_alphabet = tape_alphabet
-        self.input_alphabet = input_alphabet
-        self.transitions = transitions  # {(state, symbol): [(next_state, write_symbol, move)]}
-        self.start_state = start_state
-        self.accept_states = accept_states
-        self.reject_states = reject_states
+    # parse file
+    name_machine = lines[0].strip()  # This is still the name of the machine.
+    
+    # Initialize variables for start, accept, reject states
+    start_state = ""
+    accept_state = ""
+    reject_state = ""
+    
+    transitions = {}
 
-    def simulate(self, tape):
-        """
-        Simulates the execution of the NTM and builds an execution tree.
-        """
-        configurations = [(self.start_state, list(tape), 0, 0)]  # [(state, tape, head_position, parent_node_id)]
-        execution_tree = nx.DiGraph()
-        execution_tree.add_node(0, label=f"{self.start_state}|{''.join(tape)}")
-        node_counter = itertools.count(1)
+    # Iterate through the lines to extract necessary information
+    for line in lines:
+        # Skip blank lines and comment lines (those starting with #)
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        
+        # Extract start, accept, reject states
+        if line.startswith("Start State:"):
+            start_state = line.split(":")[1].strip()
+        elif line.startswith("Accept State:"):
+            accept_state = line.split(":")[1].strip()
+        elif line.startswith("Reject State:"):
+            reject_state = line.split(":")[1].strip()
+        
+        # Parse transition lines
+        elif line.startswith("Transitions:"):
+            continue  # Skip the "Transitions:" label
+        
+        else:
+            # Parse each transition, assuming it follows the format: current_state, read_symbol, next_state, write_symbol, direction
+            parts = line.split(',')
+            if len(parts) == 5:
+                curr, read, next_state, write, direction = map(str.strip, parts)
+                if (curr, read) not in transitions:
+                    transitions[(curr, read)] = []
+                transitions[(curr, read)].append((next_state, write, direction))
+    
+    return name_machine, start_state, accept_state, reject_state, transitions
+    
+def apply_move(left, right, write_char, direction):
+    """Applies the move operation to the tape."""
+    if not right:
+        right = write_char
+    else:
+        right = write_char + right[1:]
 
-        while configurations:
-            current_state, current_tape, head_position, parent_node = configurations.pop()
+    if direction == "R":
+        if right and right != "_":
+            left += right[0]
+            right = right[1:] if len(right) > 1 else "_"
+        else:
+            left += "_"
+    elif direction == "L":
+        if left:
+            right = left[-1] + right
+            left = left[:-1]
+        else:
+            right = "_" + right
 
-            # Add current state to the execution tree
-            current_node = next(node_counter)
-            execution_tree.add_node(current_node, label=f"{current_state}|{''.join(current_tape)}")
-            execution_tree.add_edge(parent_node, current_node)
+    return left, right
 
-            if current_state in self.accept_states:
-                print(f"Accepted: {''.join(current_tape)}")
-                execution_tree.nodes[current_node]["label"] += " (Accepted)"
+def bfs_exp(start_state, accept_state, reject_state, transitions, input, max_step=1000):
+    """Performs BFS to simulate the Turing Machine."""
+    tree = [[("", start_state, input)]]
+    parent = {}
+    total_transitions = 0
+
+    for depth in range(max_step):
+        if not tree[depth]:
+            return False, depth, total_transitions, []
+        tree.append([])
+
+        for config in tree[depth]:
+            left, state, right = config
+
+            # Check for acceptance
+            if state == accept_state:
+                path = get_path(config, parent)
+                return True, depth, total_transitions, path
+
+            # Skip rejection state
+            if state == reject_state:
                 continue
 
-            if current_state in self.reject_states:
-                print(f"Rejected: {''.join(current_tape)}")
-                execution_tree.nodes[current_node]["label"] += " (Rejected)"
+            curr_char = right[0] if right else "_"
+            moves = transitions.get((state, curr_char), [])
+
+            # If no valid moves, transition to reject state
+            if not moves:
+                next_config = (left, reject_state, right)
+                tree[depth + 1].append(next_config)
+                parent[next_config] = config
+                total_transitions += 1
                 continue
 
-            # Check current symbol under the tape head
-            current_symbol = current_tape[head_position] if 0 <= head_position < len(current_tape) else '_'
+            # Process valid moves
+            for next_state, write_char, direction in moves:
+                new_left, new_right = apply_move(left, right, write_char, direction)
+                next_config = (new_left, next_state, new_right)
+                tree[depth + 1].append(next_config)
+                parent[next_config] = config
+                total_transitions += 1
 
-            # Get all possible transitions for the current state and symbol
-            transitions = self.transitions.get((current_state, current_symbol), [])
-            for next_state, write_symbol, move in transitions:
-                new_tape = current_tape[:]
-                if 0 <= head_position < len(new_tape):
-                    new_tape[head_position] = write_symbol
-                else:
-                    new_tape.append(write_symbol)
+    return False, max_step, total_transitions, []
 
-                # Move the tape head
-                new_head_position = head_position + (1 if move == 'R' else -1)
-                if new_head_position < 0:
-                    new_tape.insert(0, '_')
-                    new_head_position = 0
+def get_path(config, parent):
+    """Retrieves the path from the initial state to the current configuration."""
+    path = [config]
+    while config in parent:
+        config = parent[config]
+        path.append(config)
+    return list(reversed(path))
 
-                configurations.append((next_state, new_tape, new_head_position, current_node))
+def main():
+    """Main function to run the Turing Machine simulator."""
+    if len(sys.argv) != 3:
+        print("Usage: python turing_machine.py <tm_file> <input_string>")
+        sys.exit(1)
 
-        return execution_tree
+    file = sys.argv[1]
+    input = sys.argv[2]
 
+    try:
+        name_machine, start_state, accept_state, reject_state, transitions = read_tm_file(file)
+    except Exception as e:
+        print(f"Error reading TM file: {e}")
+        sys.exit(1)
 
-def visualize_execution_tree(execution_tree):
-    """
-    Visualizes the execution tree using networkx and matplotlib.
-    """
-    pos = nx.nx_agraph.graphviz_layout(execution_tree, prog="dot")
-    labels = nx.get_node_attributes(execution_tree, "label")
-    plt.figure(figsize=(12, 8))
-    nx.draw(execution_tree, pos, with_labels=True, labels=labels, node_size=3000, node_color="lightblue", font_size=8)
-    plt.show()
+    accepted, steps, total_transitions, path = bfs_exp(start_state, accept_state, reject_state, transitions, input)
 
+    print(f"Machine: {name_machine}")
+    print(f"Input: {input}")
+    print(f"Depth: {steps}")
+    print(f"Total transitions: {total_transitions}")
 
-def read_ntm_configuration(csv_file):
-    """
-    Reads the NTM configuration from a CSV file and returns the parsed data.
-    """
-    with open(csv_file, "r") as file:
-        reader = csv.DictReader(file)
-        states = set()
-        tape_alphabet = set()
-        input_alphabet = set()
-        transitions = {}
-        start_state = None
-        accept_states = set()
-        reject_states = set()
+    if accepted:
+        print(f"\nString accepted in {steps} steps")
+        print("Accepting path:")
+        for left, state, right in path:
+            tape = left + (right if right != "_" else "")
+            print(f"State: {state}, Tape: {tape}")
+    else:
+        print(f"\nString rejected in {steps} steps")
 
-        for row in reader:
-            states.add(row["current_state"])
-            tape_alphabet.add(row["read_symbol"])
-            tape_alphabet.add(row["write_symbol"])
-            input_alphabet.add(row["read_symbol"])
-            transitions.setdefault((row["current_state"], row["read_symbol"]), []).append(
-                (row["next_state"], row["write_symbol"], row["move"])
-            )
-
-            if row["start_state"].lower() == "true":
-                start_state = row["current_state"]
-            if row["accept_state"].lower() == "true":
-                accept_states.add(row["current_state"])
-            if row["reject_state"].lower() == "true":
-                reject_states.add(row["current_state"])
-
-    return states, tape_alphabet, input_alphabet, transitions, start_state, accept_states, reject_states
-
-
-# Example Usage
 if __name__ == "__main__":
-    # Read NTM configuration from a CSV file
-    csv_file = "ntm_configuration.csv"  # Replace with the path to your .csv file
-    states, tape_alphabet, input_alphabet, transitions, start_state, accept_states, reject_states = read_ntm_configuration(csv_file)
-
-    # Create an NTM instance
-    ntm = NondeterministicTuringMachine(
-        states, tape_alphabet, input_alphabet, transitions, start_state, accept_states, reject_states
-    )
-
-    # Simulate the NTM on a given input tape
-    input_tape = "1101"  # Replace with your input tape
-    execution_tree = ntm.simulate(input_tape)
-
-    # Visualize the execution tree
-    visualize_execution_tree(execution_tree)
+    main()
