@@ -2,69 +2,51 @@ import sys
 
 def read_tm_file(file):
     with open(file, "r") as f:
-        lines = f.readlines()
+        lines = [line.strip() for line in f if line.strip()]
 
-    # parse file
-    name_machine = lines[0].strip()  # This is still the name of the machine.
-    
-    # Initialize variables for start, accept, reject states
-    start_state = ""
-    accept_state = ""
-    reject_state = ""
-    
+    # Extract information from the file
+    name_machine = lines[0]  # Name of the machine
+    states = lines[1].split(",")  # States
+    input_alphabet = lines[2].split(",")  # Input alphabet
+    tape_alphabet = lines[3].split(",")  # Tape alphabet
+    start_state = lines[4]  # Start state
+    accept_state = lines[5]  # Accept state
+    reject_state = lines[6]  # Reject state
     transitions = {}
 
-    # Iterate through the lines to extract necessary information
-    for line in lines:
-        # Skip blank lines and comment lines (those starting with #)
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        
-        # Extract start, accept, reject states
-        if line.startswith("Start State:"):
-            start_state = line.split(":")[1].strip()
-        elif line.startswith("Accept State:"):
-            accept_state = line.split(":")[1].strip()
-        elif line.startswith("Reject State:"):
-            reject_state = line.split(":")[1].strip()
-        
-        # Parse transition lines
-        elif line.startswith("Transitions:"):
-            continue  # Skip the "Transitions:" label
-        
-        else:
-            # Parse each transition, assuming it follows the format: current_state, read_symbol, next_state, write_symbol, direction
-            parts = line.split(',')
-            if len(parts) == 5:
-                curr, read, next_state, write, direction = map(str.strip, parts)
-                if (curr, read) not in transitions:
-                    transitions[(curr, read)] = []
-                transitions[(curr, read)].append((next_state, write, direction))
-    
+    # Parse transition rules
+    for line in lines[7:]:
+        parts = line.split(",")
+        if len(parts) == 5:
+            curr, read, next_state, write, direction = map(str.strip, parts)
+            if (curr, read) not in transitions:
+                transitions[(curr, read)] = []
+            transitions[(curr, read)].append((next_state, write, direction))
+
     return name_machine, start_state, accept_state, reject_state, transitions
-    
+
 def apply_move(left, right, write_char, direction):
     """Applies the move operation to the tape."""
-    if not right:
-        right = write_char
-    else:
+    if right:  # Write on the current position
         right = write_char + right[1:]
+    else:  # If the right side is empty, extend the tape with a blank
+        right = write_char
 
     if direction == "R":
-        if right and right != "_":
+        if right:  # Move right
             left += right[0]
             right = right[1:] if len(right) > 1 else "_"
-        else:
+        else:  # If the right side is empty, extend the tape
             left += "_"
     elif direction == "L":
-        if left:
+        if left:  # Move left
             right = left[-1] + right
             left = left[:-1]
-        else:
+        else:  # If the left side is empty, extend the tape
             right = "_" + right
 
     return left, right
+
 
 def bfs_exp(start_state, accept_state, reject_state, transitions, input, max_step=1000):
     """Performs BFS to simulate the Turing Machine."""
