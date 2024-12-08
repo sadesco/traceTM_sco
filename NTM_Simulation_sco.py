@@ -97,6 +97,10 @@ def bfs_simulation(tm, input_str, max_steps, output_file):
     steps = 0
     accepted = False
 
+    total_nondeterminism = 0  # track total nondeterminism
+    step_count = 0  # track the number of steps where transitions are evaluated
+
+
     # perform BFS simulation
     while queue and steps < max_steps:
         current_tape, depth, path = queue.popleft()
@@ -119,6 +123,10 @@ def bfs_simulation(tm, input_str, max_steps, output_file):
         transitions = tm['transitions'].get(current_tape['state'], {}).get(current_tape['head'], None)
         if not transitions:
             continue
+        
+        # add nondeterminism count for this step
+        total_nondeterminism += len(transitions)
+        step_count += 1
 
         # loop through transitions and apply them
         for dest, write, direction in transitions:
@@ -146,17 +154,24 @@ def bfs_simulation(tm, input_str, max_steps, output_file):
             queue.append((new_tape, depth + 1, path + [new_tape]))  # add new tape configuration to the queue
         steps += 1
 
-    # output the result of the simulation
-    output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path if accepted else [], output_file)
+    # calculate average nondeterminism
+    avg_nondeterminism = total_nondeterminism / step_count if step_count > 0 else 0
+
+   # output results
+    output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path if accepted else [], output_file, avg_nondeterminism)
 
 
-def output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path, output_file):
+def output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path, output_file, avg_nondeterminism):
     # print and write out the tree depth and total transition count
     print(f"Depth of the tree: {max(visited_depths.keys(), default=0)}.")
     output_file.write(f"Depth of the tree: {max(visited_depths.keys(), default=0)}.\n")
 
     print(f"Total transitions: {steps}.")
     output_file.write(f"Total transitions: {steps}.\n")
+
+    # Print and save average nondeterminism
+    print(f"Average nondeterminism: {avg_nondeterminism:.2f}.")
+    output_file.write(f"Average nondeterminism: {avg_nondeterminism:.2f}.\n")
 
     # output if the string was accepted
     if accepted:
