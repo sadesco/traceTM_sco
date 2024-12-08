@@ -1,6 +1,0 @@
-current_state,read_symbol,write_symbol,move,next_state,start_state,accept_state,reject_state
-q0,1,X,R,q1,true,false,false
-q1,1,1,R,q1,false,false,false
-q1,_,_,L,q2,false,false,true
-q2,X,X,R,q_accept,false,true,false
-q2,_,_,R,q_reject,false,false,true
