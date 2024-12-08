@@ -1,135 +1,211 @@
+#!/usr/bin/env python3
 import sys
+import os
+import csv
+from tqdm import tqdm  # displaying progress bar
+from collections import deque  # queue data structure
 
-def read_tm_file(file):
-    with open(file, "r") as f:
-        lines = [line.strip() for line in f if line.strip()]
 
-    # Extract information from the file
-    name_machine = lines[0]  # Name of the machine
-    states = lines[1].split(",")  # States
-    input_alphabet = lines[2].split(",")  # Input alphabet
-    tape_alphabet = lines[3].split(",")  # Tape alphabet
-    start_state = lines[4]  # Start state
-    accept_state = lines[5]  # Accept state
-    reject_state = lines[6]  # Reject state
+def parse_tm_file(filename):
+    # open and read the TM file
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+
+    # extract machine parameters from the file
+    machine_name = lines[0].strip().split(',')[0]
+    states = list(filter(None, lines[1].strip().split(',')))
+    input_symbols = list(filter(None, lines[2].strip().split(',')))
+    tape_symbols = list(filter(None, lines[3].strip().split(',')))
+    start_state = lines[4].strip().split(',')[0]
+    accept_states = list(filter(None, lines[5].strip().split(',')))
+    reject_state = lines[6].strip().split(',')[0]
+
+    # parse transition rules from the file
     transitions = {}
+    for line in tqdm(lines[7:], desc="Reading TM file..."):
+        parts = line.strip().split(',')
+        if len(parts) == 3:
+            src, read_char, dest = parts
+            write_char, move = read_char, 'R'
+        else:
+            src, read_char, dest, write_char, move = parts
+        # organize transitions into a dictionary
+        if src not in transitions:
+            transitions[src] = {}
+        if read_char not in transitions[src]:
+            transitions[src][read_char] = []
+        transitions[src][read_char].append((dest, write_char, move))
 
-    # Parse transition rules
-    for line in lines[7:]:
-        parts = line.split(",")
-        if len(parts) == 5:
-            curr, read, next_state, write, direction = map(str.strip, parts)
-            if (curr, read) not in transitions:
-                transitions[(curr, read)] = []
-            transitions[(curr, read)].append((next_state, write, direction))
-
-    return name_machine, start_state, accept_state, reject_state, transitions
-
-def apply_move(left, right, write_char, direction):
-    """Applies the move operation to the tape."""
-    if right:  # Write on the current position
-        right = write_char + right[1:]
-    else:  # If the right side is empty, extend the tape with a blank
-        right = write_char
-
-    if direction == "R":
-        if right:  # Move right
-            left += right[0]
-            right = right[1:] if len(right) > 1 else "_"
-        else:  # If the right side is empty, extend the tape
-            left += "_"
-    elif direction == "L":
-        if left:  # Move left
-            right = left[-1] + right
-            left = left[:-1]
-        else:  # If the left side is empty, extend the tape
-            right = "_" + right
-
-    return left, right
+    # return machine configuration
+    return {
+        'name': machine_name,
+        'states': states,
+        'input_symbols': input_symbols,
+        'tape_symbols': tape_symbols,
+        'start_state': start_state,
+        'accept_states': accept_states,
+        'reject_state': reject_state,
+        'transitions': transitions,
+    }
 
 
-def bfs_exp(start_state, accept_state, reject_state, transitions, input, max_step=1000):
-    """Performs BFS to simulate the Turing Machine."""
-    tree = [[("", start_state, input)]]
-    parent = {}
-    total_transitions = 0
+def get_transition(tm, tape):
+    curr_state = tape['state']
+    head = tape['head']
 
-    for depth in range(max_step):
-        if not tree[depth]:
-            return False, depth, total_transitions, []
-        tree.append([])
+    # if no transition exists, return None
+    if head not in tm['transitions'].get(curr_state, {}):
+        return None
+    else:
+        new_tapes = []
+        # loop through possible transitions and create new tape 
+        for dest, write_char, direction in tm['transitions'][curr_state][head]:
+            new_tape = {
+                'state': dest,
+                'left': tape['left'][:],
+                'head': write_char,
+                'right': tape['right'][:],
+            }
 
-        for config in tree[depth]:
-            left, state, right = config
+            # move head to the right or left on the tape
+            if direction == 'R':  # right
+                if len(new_tape['right']) == 0:
+                    new_tape['right'] = ['_']  # append blank if at the end
+                new_tape['left'].append(new_tape['head'])
+                new_tape['head'] = new_tape['right'].pop(0)
 
-            # Check for acceptance
-            if state == accept_state:
-                path = get_path(config, parent)
-                return True, depth, total_transitions, path
+            else:  # left
+                if len(new_tape['left']) == 0:
+                    new_tape['left'] = ['_']  # append blank if at the beginning
+                new_tape['right'].insert(0, new_tape['head'])
+                new_tape['head'] = new_tape['left'].pop()
 
-            # Skip rejection state
-            if state == reject_state:
-                continue
+            new_tapes.append(new_tape)
+        return new_tapes
 
-            curr_char = right[0] if right else "_"
-            moves = transitions.get((state, curr_char), [])
 
-            # If no valid moves, transition to reject state
-            if not moves:
-                next_config = (left, reject_state, right)
-                tree[depth + 1].append(next_config)
-                parent[next_config] = config
-                total_transitions += 1
-                continue
+def bfs_simulation(tm, input_str, max_steps, output_file):
+    queue = deque()  # initialize the queue for BFS
+    tape = {
+        'state': tm['start_state'],
+        'left': [],
+        'head': input_str[0] if input_str else '_',
+        'right': list(input_str[1:]),
+    }
+    queue.append((tape, 0, [tape]))  # add initial tape 
+    visited_depths = {}  # dictionary to track visited configurations 
+    steps = 0
+    accepted = False
 
-            # Process valid moves
-            for next_state, write_char, direction in moves:
-                new_left, new_right = apply_move(left, right, write_char, direction)
-                next_config = (new_left, next_state, new_right)
-                tree[depth + 1].append(next_config)
-                parent[next_config] = config
-                total_transitions += 1
+    # perform BFS simulation
+    while queue and steps < max_steps:
+        current_tape, depth, path = queue.popleft()
 
-    return False, max_step, total_transitions, []
+        # track visited configurations
+        if depth not in visited_depths:
+            visited_depths[depth] = []
+        visited_depths[depth].append(current_tape)
 
-def get_path(config, parent):
-    """Retrieves the path from the initial state to the current configuration."""
-    path = [config]
-    while config in parent:
-        config = parent[config]
-        path.append(config)
-    return list(reversed(path))
+        # check for acceptance state
+        if current_tape['state'] in tm['accept_states']:
+            accepted = True
+            break
+
+        # skip if rejecting state is encountered
+        if current_tape['state'] == tm['reject_state']:
+            continue
+
+        # get possible transitions for the current state and head
+        transitions = tm['transitions'].get(current_tape['state'], {}).get(current_tape['head'], None)
+        if not transitions:
+            continue
+
+        # loop through transitions and apply them
+        for dest, write, direction in transitions:
+            new_tape = {
+                'state': dest,
+                'left': current_tape['left'][:],
+                'head': write,
+                'right': current_tape['right'][:],
+            }
+
+            # update tape with head movement
+            if direction == 'R':
+                new_tape['left'].append(new_tape['head'])
+                if new_tape['right']:
+                    new_tape['head'] = new_tape['right'].pop(0)
+                else:
+                    new_tape['head'] = '_'
+            elif direction == 'L':
+                new_tape['right'].insert(0, new_tape['head'])
+                if new_tape['left']:
+                    new_tape['head'] = new_tape['left'].pop()
+                else:
+                    new_tape['head'] = '_'
+
+            queue.append((new_tape, depth + 1, path + [new_tape]))  # add new tape configuration to the queue
+        steps += 1
+
+    # output the result of the simulation
+    output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path if accepted else [], output_file)
+
+
+def output_result(tm, input_str, steps, max_steps, accepted, visited_depths, path, output_file):
+    # print and write out the tree depth and total transition count
+    print(f"Depth of the tree: {max(visited_depths.keys(), default=0)}.")
+    output_file.write(f"Depth of the tree: {max(visited_depths.keys(), default=0)}.\n")
+
+    print(f"Total transitions: {steps}.")
+    output_file.write(f"Total transitions: {steps}.\n")
+
+    # output if the string was accepted
+    if accepted:
+        print(f"String {input_str} accepted in {len(path) - 1} transitions/steps.")
+        output_file.write(f"String {input_str} accepted in {len(path) - 1} transitions/steps.\n")
+        # print each tape configuration in the acceptance path
+        for tape in path:
+            tape_repr = f"{''.join(tape['left'])},{tape['state']},{tape['head']},{''.join(tape['right'])}"
+            print(tape_repr)
+            output_file.write(f"{tape_repr}\n")
+    else:
+        # output rejection or exceeded max steps
+        if steps < max_steps:
+            print(f"String: {input_str} rejected in {max(visited_depths.keys(), default=0)} transitions/steps.")
+            output_file.write(f"String: {input_str} rejected in {max(visited_depths.keys(), default=0)} transitions/steps.\n")
+        else:
+            print(f"Execution stopped after {max_steps} maximum steps limit.")
+            output_file.write(f"Execution stopped after {max_steps} maximum steps limit.\n")
 
 def main():
-    """Main function to run the Turing Machine simulator."""
-    if len(sys.argv) != 3:
-        print("Usage: python turing_machine.py <tm_file> <input_string>")
-        sys.exit(1)
+    # get the TM file and parse it
+    filename = input("Enter Turing Machine file name: ")
+    tm = parse_tm_file(filename)
 
-    file = sys.argv[1]
-    input = sys.argv[2]
+    # prepare output file
+    output_filename = tm['name'].replace(' ', '') + "-output.txt"
+    if os.path.exists(output_filename):
+        os.remove(output_filename)
 
-    try:
-        name_machine, start_state, accept_state, reject_state, transitions = read_tm_file(file)
-    except Exception as e:
-        print(f"Error reading TM file: {e}")
-        sys.exit(1)
+    with open(output_filename, 'w') as output_file:
+        output_file.write(f"Machine Name: {tm['name']}.\n\n")
 
-    accepted, steps, total_transitions, path = bfs_exp(start_state, accept_state, reject_state, transitions, input)
+        while True:
+            # get input string from the user
+            user_input = input("Enter input string or type quit to exit: ")
+            if user_input == "quit":
+                break
 
-    print(f"Machine: {name_machine}")
-    print(f"Input: {input}")
-    print(f"Depth: {steps}")
-    print(f"Total transitions: {total_transitions}")
+            max_steps = int(input("Enter maximum steps/transitions: "))
 
-    if accepted:
-        print(f"\nString accepted in {steps} steps")
-        print("Accepting path:")
-        for left, state, right in path:
-            tape = left + (right if right != "_" else "")
-            print(f"State: {state}, Tape: {tape}")
-    else:
-        print(f"\nString rejected in {steps} steps")
+            print(f"\nMachine Name: {tm['name']}")
+            print(f"Input string: {user_input}")
+            output_file.write(f"Input string: {user_input}\n")
+
+            # simulate the TM and output results
+            bfs_simulation(tm, user_input, max_steps, output_file)
+            print()
+            output_file.write("\n")
+
 
 if __name__ == "__main__":
     main()
