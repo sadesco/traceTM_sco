@@ -1,0 +1,14 @@
+binary_incrementer
+q0,q1,q_a,q_r
+0,1
+0,1,_
+q0
+q_a
+q_r
+q0,1,q0,1,R
+q0,0,q0,0,R
+q0,_,q1,_,L
+q1,0,q_a,1,S
+q1,1,q1,0,L
+q1,_,q_a,1,S
+q1,X,q_r,X,S

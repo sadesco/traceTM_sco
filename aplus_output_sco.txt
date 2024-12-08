@@ -1,0 +1,47 @@
+Machine Name: a plus.
+
+Input string: _
+Depth of the tree: 0.
+Total transitions: 0.
+Average nondeterminism: 0.00.
+String: _ rejected in 0 transitions/steps.
+
+Input string: aaaaa
+Depth of the tree: 4.
+Total transitions: 5.
+Average nondeterminism: 2.00.
+Execution stopped after 5 maximum steps limit.
+
+Input string: aaaaa
+Depth of the tree: 6.
+Total transitions: 6.
+Average nondeterminism: 1.83.
+String aaaaa accepted in 6 transitions/steps.
+,q1,a,aaaa
+a,q1,a,aaa
+aa,q1,a,aa
+aaa,q1,a,a
+aaaa,q1,a,
+aaaaa,q2,_,
+aaaa,q3,a,_
+
+Input string: a
+Depth of the tree: 2.
+Total transitions: 2.
+Average nondeterminism: 1.50.
+String a accepted in 2 transitions/steps.
+,q1,a,
+a,q2,_,
+,q3,a,_
+
+Input string: aaa
+Depth of the tree: 4.
+Total transitions: 4.
+Average nondeterminism: 1.75.
+String aaa accepted in 4 transitions/steps.
+,q1,a,aa
+a,q1,a,a
+aa,q1,a,
+aaa,q2,_,
+aa,q3,a,_
+

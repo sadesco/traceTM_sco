@@ -197,7 +197,7 @@ def main():
     tm = parse_tm_file(filename)
 
     # prepare output file
-    output_filename = tm['name'].replace(' ', '') + "-output.txt"
+    output_filename = tm['name'].replace(' ', '') + "_output_sco.txt"
     if os.path.exists(output_filename):
         os.remove(output_filename)
 

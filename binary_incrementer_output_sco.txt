@@ -1,0 +1,86 @@
+Machine Name: binary_incrementer.
+
+Input string: 1010
+Depth of the tree: 6.
+Total transitions: 6.
+Average nondeterminism: 1.00.
+String 1010 accepted in 6 transitions/steps.
+,q0,1,010
+1,q0,0,10
+10,q0,1,0
+101,q0,0,
+1010,q0,_,
+101,q1,0,_
+101,qa,1,_
+
+Input string: 1
+Depth of the tree: 0.
+Total transitions: 1.
+Average nondeterminism: 1.00.
+Execution stopped after 1 maximum steps limit.
+
+Input string: 011
+Depth of the tree: 7.
+Total transitions: 7.
+Average nondeterminism: 1.00.
+String 011 accepted in 7 transitions/steps.
+,q0,0,11
+0,q0,1,1
+01,q0,1,
+011,q0,_,
+01,q1,1,_
+0,q1,1,0_
+,q1,0,00_
+,qa,1,00_
+
+Input string: 1101 5
+Depth of the tree: 4.
+Total transitions: 4.
+Average nondeterminism: 1.00.
+String: 1101 5 rejected in 4 transitions/steps.
+
+Input string: 1101
+Depth of the tree: 4.
+Total transitions: 5.
+Average nondeterminism: 1.00.
+Execution stopped after 5 maximum steps limit.
+
+Input string: 1101
+Depth of the tree: 7.
+Total transitions: 7.
+Average nondeterminism: 1.00.
+String 1101 accepted in 7 transitions/steps.
+,q0,1,101
+1,q0,1,01
+11,q0,0,1
+110,q0,1,
+1101,q0,_,
+110,q1,1,_
+11,q1,0,0_
+11,qa,1,0_
+
+Input string: 0
+Depth of the tree: 3.
+Total transitions: 3.
+Average nondeterminism: 1.00.
+String 0 accepted in 3 transitions/steps.
+,q0,0,
+0,q0,_,
+,q1,0,_
+,qa,1,_
+
+Input string: 11X1
+Depth of the tree: 1.
+Total transitions: 2.
+Average nondeterminism: 1.00.
+Execution stopped after 2 maximum steps limit.
+
+Input string: _
+Depth of the tree: 2.
+Total transitions: 2.
+Average nondeterminism: 1.00.
+String _ accepted in 2 transitions/steps.
+,q0,_,
+,q1,_,_
+,qa,1,_
+

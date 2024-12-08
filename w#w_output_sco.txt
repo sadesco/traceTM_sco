@@ -1,0 +1,60 @@
+Machine Name: w#w.
+
+Input string: 011#01
+Depth of the tree: 22.
+Total transitions: 22.
+Average nondeterminism: 1.00.
+String: 011#01 rejected in 22 transitions/steps.
+
+Input string: 01#01
+Depth of the tree: 18.
+Total transitions: 18.
+Average nondeterminism: 1.00.
+String 01#01 accepted in 18 transitions/steps.
+,q1,0,1#01
+x,q2,1,#01
+x1,q2,#,01
+x1#,q4,0,1
+x1,q6,#,x1
+x,q7,1,#x1
+,q7,x,1#x1
+x,q1,1,#x1
+xx,q3,#,x1
+xx#,q5,x,1
+xx#x,q5,1,
+xx#,q6,x,x
+xx,q6,#,xx
+x,q7,x,#xx
+xx,q1,#,xx
+xx#,q8,x,x
+xx#x,q8,x,
+xx#xx,q8,_,
+xx#xx_,q_a,_,
+
+Input string: 01#01
+Depth of the tree: 9.
+Total transitions: 10.
+Average nondeterminism: 1.00.
+Execution stopped after 10 maximum steps limit.
+
+Input string: 01#1
+Depth of the tree: 3.
+Total transitions: 3.
+Average nondeterminism: 1.00.
+String: 01#1 rejected in 3 transitions/steps.
+
+Input string: #
+Depth of the tree: 2.
+Total transitions: 2.
+Average nondeterminism: 1.00.
+String # accepted in 2 transitions/steps.
+,q1,#,
+#,q8,_,
+#_,q_a,_,
+
+Input string: _
+Depth of the tree: 0.
+Total transitions: 0.
+Average nondeterminism: 0.00.
+String: _ rejected in 0 transitions/steps.
+
