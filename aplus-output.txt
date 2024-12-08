@@ -1,0 +1,14 @@
+Machine Name: a plus.
+
+Input string: aaaaa
+Depth of the tree: 6.
+Total transitions: 6.
+String aaaaa accepted in 6 transitions/steps.
+,q1,a,aaaa
+a,q1,a,aaa
+aa,q1,a,aa
+aaa,q1,a,a
+aaaa,q1,a,
+aaaaa,q2,_,
+aaaa,q3,a,_
+
